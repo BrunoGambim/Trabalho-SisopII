@@ -113,9 +113,9 @@ void createDataPackage(package** pack, char *hostname, char *macAddress){
 
     newPackage->payload[0] = 0;
     strcat(newPackage->payload,hostname);
-    strcat(newPackage->payload,";");
+    strcat(newPackage->payload,"\n");
     strcat(newPackage->payload,macAddress);
-    strcat(newPackage->payload,";");
+    strcat(newPackage->payload,"\n");
 
     *pack = newPackage;
 }
@@ -161,7 +161,7 @@ void unpackDataPackage(package* pack, char **hostname, char **macAddress){
     bufferIndex = 0;
     searching_flag = SEARCHING_HOSTNAME;
     for(i = 0; pack->payload[i] != 0; i++){
-        if(pack->payload[i] != ';'){
+        if(pack->payload[i] != '\n'){
             buffer[bufferIndex] = pack->payload[i];
         }else{
             buffer[bufferIndex] = 0;

@@ -5,7 +5,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
-#include "member_data.h"
 #include "members_table.h"
 #include "network.h"
 #include "custom_mutex.h"
@@ -14,6 +13,8 @@
 #define BUFFER_SIZE 50
 #define WAKEUP_CMD "WAKEUP"
 #define CLEAR "clear"
+#define DISCOVERY_SENDER_PERIOD 3
+#define UPDATE_STATUS_PERIOD 1
 
 pthread_mutex_t printMutex;
 pthread_cond_t dataUpdatedCond;
@@ -66,7 +67,7 @@ void* discoverySenderRoutine(){
     createDataPackage(&pack, hostname, macAddress);
     while(TRUE){
         sendPackage(pack,BROADCAST_PORT,broadcastIp);
-        sleep(5);
+        sleep(DISCOVERY_SENDER_PERIOD);
     }
     freePackage(pack);
 }
@@ -121,7 +122,7 @@ void* updateStatusRoutine(void* aux){
         dataUpdated = updateMembersStatus();
 
         customWriteMutexUnlock(customMutex, dataUpdated);
-        sleep(1);
+        sleep(UPDATE_STATUS_PERIOD);
     }
 }
 

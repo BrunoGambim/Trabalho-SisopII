@@ -165,7 +165,7 @@ void printLine(table_line* line){
 }
 
 void printTableHeader(){
-    printf("Hostname           Endereco_MAC        Endereco_IP        Status\n");
+    printf("Hostname           Endereco_MAC             Endereco_IP        Status\n");
 }
 
 void printTable(){
