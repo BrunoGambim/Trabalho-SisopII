@@ -1,4 +1,4 @@
-#define BROADCAST_PORT     8081
+#define BROADCAST_PORT     8080
 #define DISCOVERY_PORT     8081
 #define UPDATE_PORT     8082
 #define EXIT_PORT     8083
@@ -11,7 +11,7 @@ typedef struct _package{
 
 void sendPackage(package* package, int port, char* ipAddress);
 void serve(package** pack, char** ipAddress, int sockfd);
-int createSocket(int port, char* ipAddress);
+int  createSocket(int port, char* ipAddress);
 void closeSocket(int socket);
 void createDataPackage(package** pack, char *hostname, char *macAddress);
 void createHostnamePackage(package** pack, char *hostname);
@@ -24,3 +24,4 @@ void getMACAddress(char** macAddress);
 void getIPAddress(char** ipAddress);
 void getHostname(char** hostname);
 void getBroadcastIPAddress(char** ipAddress);
+void initNetworkGlobalVariables();

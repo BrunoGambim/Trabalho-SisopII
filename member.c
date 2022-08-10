@@ -50,6 +50,7 @@ void sendDiscoveryPackage(char* managerIp){
 
 void* discoveryReceiverRoutine(){
     package* pack;
+    int managerIsNull;
     char* hostname;
     char* macAddress;
     char* ipAddress;
@@ -58,12 +59,15 @@ void* discoveryReceiverRoutine(){
         unpackDataPackage(pack,&hostname,&macAddress);
         sendDiscoveryPackage(ipAddress);
 
-        customWriteMutexLock(customMutex);
-        if(updateManagerData(hostname, macAddress, ipAddress)){
+        customReadMutexLock(customMutex);
+        managerIsNull = managerDataIsNull();
+        customReadMutexUnlock(customMutex);
+        
+        if(managerIsNull){
+            customWriteMutexLock(customMutex);
+            updateManagerData(hostname, macAddress, ipAddress);
             customWriteMutexUnlock(customMutex,DATA_UPDATED);
-        } else {
-            customWriteMutexUnlock(customMutex,DATA_NOT_UPDATED);
-        }   
+        }
 
         free(hostname);
         free(macAddress);
@@ -134,6 +138,7 @@ void* interfaceReaderRoutine(){
 
 int main(){
     char* broadcastIp;
+    initNetworkGlobalVariables();
     getBroadcastIPAddress(&broadcastIp);
     discoverySocket = createSocket(BROADCAST_PORT,broadcastIp);
 

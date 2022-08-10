@@ -41,20 +41,6 @@ void* printDataRoutine(){
     }
 }
 
-
-void addData(char *hostname, char *macAddress, char *ipAddress, char *status){
-    customWriteMutexLock(customMutex);
-
-    addLine(hostname,macAddress,ipAddress,status);
-
-    customWriteMutexUnlock(customMutex, DATA_UPDATED);
-
-    free(hostname);
-    free(macAddress);
-    free(ipAddress);
-    
-}
-
 void* discoverySenderRoutine(){
     package* pack;
     char* hostname;
@@ -87,14 +73,15 @@ void* discoveryReceiverRoutine(){
         isHostInTheTable = isHostnameInTheTable(hostname);
         customReadMutexUnlock(customMutex);
 
-        if(isHostInTheTable){
-            free(hostname);
-            free(macAddress);
-            free(ipAddress);
-        }else{
-            addData(hostname,macAddress,ipAddress,AWAKEN);
+        if(!isHostInTheTable){
+            customWriteMutexLock(customMutex);
+            addLine(hostname,macAddress,ipAddress,AWAKEN);
+            customWriteMutexUnlock(customMutex, DATA_UPDATED);  
         }
-        
+
+        free(hostname);
+        free(macAddress);
+        free(ipAddress);
     }
 }
 
@@ -133,7 +120,9 @@ void* interfaceReaderRoutine(){
     getBroadcastIPAddress(&broadcastIp);
     while (TRUE){
         scanf("%s %s",cmd, hostname);
+        customReadMutexLock(customMutex);
         findMACAddressByHostname(hostname, &macAddress);
+        customReadMutexUnlock(customMutex);
         if(macAddress != NULL && strcmp(cmd,WAKEUP_CMD) == 0){
             createMagicPackage(&pack, macAddress);
             sendPackage(pack,MAGIC_PACKAGE_PORT,broadcastIp);
@@ -147,14 +136,6 @@ void* interfaceReaderRoutine(){
     }
 }
 
-void removeHostFromTable(char* hostname){
-    customWriteMutexLock(customMutex);
-
-    removeLineByHostname(hostname);
-
-    customWriteMutexUnlock(customMutex, DATA_UPDATED);
-}
-
 void* exitReceiverRoutine(){
     package* pack;
     char* hostname;
@@ -162,10 +143,12 @@ void* exitReceiverRoutine(){
         serve(&pack,NULL,exitSocket);
         unpackHostnamePackage(pack,&hostname);
         
-        removeHostFromTable(hostname);
+        customWriteMutexLock(customMutex);
+        removeLineByHostname(hostname);
+        customWriteMutexUnlock(customMutex, DATA_UPDATED);
         
         free(hostname);
-        hostname == NULL;
+        hostname = NULL;
     }
 }
 
@@ -178,6 +161,7 @@ void finishProcess(){
 
 int main(){
     char* managerIp;
+    initNetworkGlobalVariables();
     getIPAddress(&managerIp);
     updateSocket = createSocket(UPDATE_PORT,managerIp);
     discoverySocket = createSocket(DISCOVERY_PORT,managerIp);

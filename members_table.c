@@ -5,6 +5,8 @@
 #include <time.h>
 #include "members_table.h"
 
+#define MAXIMUM_UPDATE_INTERVAL 3
+
 typedef struct table_lines{
     char *hostname;
     char *macAddress;
@@ -184,7 +186,7 @@ int updateMembersStatus(){
     line = table;
     changedMembersCounter = 0;
     while(line != NULL){
-        if((getTimestamp() - line->timestamp) < 3){
+        if((getTimestamp() - line->timestamp) < MAXIMUM_UPDATE_INTERVAL){
             if(strcmp(line->status,ASLEEP) == 0)
                 changedMembersCounter++;
             strcpy(line->status,AWAKEN);

@@ -244,13 +244,10 @@ void getNetmaskFromIfaddres(char** netmask){
 }
 
 void getIPAddress(char** ipAddress){
-    if(localIPAddress == NULL){
-        getIPAddressFromIfaddres(&localIPAddress);
-    }
     *ipAddress = localIPAddress;
 }
 
-void getHostnameByAddr(char** hostname){
+void getHostnameFromLibs(char** hostname){
     char buffer[1024];
     buffer[1023] = '\0';
     gethostname(buffer, 1023);
@@ -258,9 +255,6 @@ void getHostnameByAddr(char** hostname){
 }
 
 void getHostname(char** hostname){
-    if(localHostname == NULL){
-        getHostnameByAddr(&localHostname);
-    }
     *hostname = localHostname;
 }
 
@@ -297,9 +291,6 @@ void  getMACAddressFromIfaddrs(char** macAddress){
 }
 
 void getMACAddress(char** macAddress){
-    if(localMACAddress == NULL){
-        getMACAddressFromIfaddrs(&localMACAddress);
-    }
     *macAddress = localMACAddress;
 }
 
@@ -328,8 +319,12 @@ void calcBroadcastIP(char** ipAddress){
 }
 
 void getBroadcastIPAddress(char** ipAddress){
-    if(broadcastIPAddress == NULL){
-        calcBroadcastIP(&broadcastIPAddress);
-    }
     *ipAddress = broadcastIPAddress;
+}
+
+void initNetworkGlobalVariables(){
+    getIPAddressFromIfaddres(&localIPAddress);
+    getHostnameFromLibs(&localHostname);
+    getMACAddressFromIfaddrs(&localMACAddress);
+    calcBroadcastIP(&broadcastIPAddress);
 }
