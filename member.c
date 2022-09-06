@@ -6,7 +6,7 @@
 #include <semaphore.h>
 #include <signal.h>
 #include "network.h"
-#include "manager_data.h"
+#include "members_table.h"
 #include "custom_mutex.h"
 
 #define TRUE 1
@@ -15,14 +15,51 @@
 #define CLEAR "clear"
 #define UPDATE_SENDER_PERIOD 1
 
-pthread_mutex_t printMutex;
+pthread_mutex_t printMutex, replicationMutex;
 pthread_cond_t dataUpdatedCond;
 sem_t waitPrintRoutineStart;
 custom_mutex* customMutex;
 pthread_t printThread, interfaceReaderThread,
-        discoveryReceiverThread, updateSenderThread;
+        discoveryReceiverThread, updateSenderThread,
+        replicationThread;
 
 int discoverySocket;
+int replicationSocket;
+
+void sendAckPackage(char* managerIp, char* hostname){
+    package* pack;
+
+    createHostnamePackage(&pack, hostname);
+    sendPackage(pack,REPLICATION_PORT,managerIp);
+
+    freePackage(pack);
+}
+
+void* replicationRoutine(){
+    package* pack;
+    char* hostname;
+    char* macAddress;
+    char* ipAddress;
+    char* managerIp;
+    char* status;
+    while(TRUE){
+        serve(&pack,&managerIp,replicationSocket);
+        unpackDataPackage(pack,&hostname,&macAddress,&ipAddress,&status);
+        sendAckPackage(managerIp, hostname);
+        customWriteMutexLock(customMutex);
+        if(!isHostnameInTheTable(hostname)){
+            addLine(hostname,macAddress,ipAddress,status);
+            customWriteMutexUnlock(customMutex,DATA_UPDATED);
+        }else{
+            customWriteMutexUnlock(customMutex,DATA_NOT_UPDATED);
+        }
+
+        free(hostname);
+        free(macAddress);
+        free(ipAddress);
+        free(status);
+    }
+}
 
 void* printDataRoutine(){
     pthread_mutex_lock(&printMutex);
@@ -30,7 +67,7 @@ void* printDataRoutine(){
     while (TRUE){
         pthread_cond_wait(&dataUpdatedCond,&printMutex);
         system(CLEAR);
-        printManagerData();
+        printManager();
     }
 }
 
@@ -42,7 +79,7 @@ void sendDiscoveryPackage(char* managerIp){
     getHostname(&hostname);
     getMACAddress(&macAddress);
 
-    createDataPackage(&pack, hostname, macAddress);
+    createDiscoveryPackage(&pack, hostname, macAddress);
     sendPackage(pack,DISCOVERY_PORT,managerIp);
 
     freePackage(pack);
@@ -56,16 +93,19 @@ void* discoveryReceiverRoutine(){
     char* ipAddress;
     while(TRUE){
         serve(&pack,&ipAddress,discoverySocket);
-        unpackDataPackage(pack,&hostname,&macAddress);
+        unpackDiscoveryPackage(pack,&hostname,&macAddress);
         sendDiscoveryPackage(ipAddress);
 
         customReadMutexLock(customMutex);
-        managerIsNull = managerDataIsNull();
+        managerIsNull = !hasManager();
         customReadMutexUnlock(customMutex);
         
         if(managerIsNull){
             customWriteMutexLock(customMutex);
-            updateManagerData(hostname, macAddress, ipAddress);
+            if(!isHostnameInTheTable(hostname)){
+                addLine(hostname,macAddress,ipAddress,AWAKEN);
+            }
+            setManagerByHostname(hostname);
             customWriteMutexUnlock(customMutex,DATA_UPDATED);
         }
 
@@ -73,7 +113,6 @@ void* discoveryReceiverRoutine(){
         free(macAddress);
         free(ipAddress);
     }
-    closeSocket(discoverySocket);
 }
 
 void* updateSenderRoutine(){
@@ -85,9 +124,11 @@ void* updateSenderRoutine(){
     while(TRUE){
 
         customReadMutexLock(customMutex);
-        if(!managerDataIsNull()){
+        if(hasManager()){
             getManagerIPAddress(&managerIpAddress);
             sendPackage(pack,UPDATE_PORT,managerIpAddress);
+            free(managerIpAddress);
+            managerIpAddress = NULL;
         }
         customReadMutexUnlock(customMutex);
         
@@ -104,9 +145,11 @@ void sendExitPackageToTheManager(){
     createHostnamePackage(&pack, hostname);
 
     customReadMutexLock(customMutex);
-    if(!managerDataIsNull()){
+    if(hasManager()){
         getManagerIPAddress(&managerIpAddress);
         sendPackage(pack,EXIT_PORT,managerIpAddress);
+        free(managerIpAddress);
+        managerIpAddress = NULL;
     }
     customReadMutexUnlock(customMutex);
 
@@ -117,6 +160,7 @@ void sendExitPackageToTheManager(){
 void finishProcess(){
     sendExitPackageToTheManager();
     closeSocket(discoverySocket);
+    closeSocket(replicationSocket);
 
     exit(EXIT_SUCCESS);
 }
@@ -140,17 +184,20 @@ int main(){
     char* broadcastIp;
     initNetworkGlobalVariables();
     getBroadcastIPAddress(&broadcastIp);
-    discoverySocket = createSocket(BROADCAST_PORT,broadcastIp);
+    discoverySocket = createSocket(DISCOVERY_BROADCAST_PORT,broadcastIp);
+    replicationSocket = createSocket(REPLICATION_PORT,broadcastIp);
 
     sem_init(&waitPrintRoutineStart,0,0);
     pthread_mutex_init(&printMutex,NULL);
+    pthread_mutex_init(&replicationMutex,NULL);
     pthread_cond_init(&dataUpdatedCond,NULL);
-    createCustomMutex(&customMutex, &dataUpdatedCond, &printMutex);
+    createCustomMutex(&customMutex, &dataUpdatedCond, &printMutex, &replicationMutex);
 
     pthread_create(&printThread,NULL,printDataRoutine,NULL);
 
     sem_wait(&waitPrintRoutineStart);
     pthread_create(&updateSenderThread,NULL,updateSenderRoutine,NULL);
+    pthread_create(&replicationThread,NULL,replicationRoutine,NULL);
     pthread_create(&discoveryReceiverThread,NULL,discoveryReceiverRoutine,NULL);
     pthread_create(&interfaceReaderThread,NULL,interfaceReaderRoutine,NULL);
 
@@ -160,8 +207,10 @@ int main(){
     pthread_join(interfaceReaderThread, NULL);
     pthread_join(discoveryReceiverThread, NULL);
     pthread_join(updateSenderThread, NULL);
+    pthread_join(replicationThread, NULL);
 
     closeSocket(discoverySocket);
+    closeSocket(replicationSocket);
 
     return 0;
 }

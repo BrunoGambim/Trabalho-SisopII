@@ -7,11 +7,12 @@ typedef struct _custom_mutex{
     int readCount;
     pthread_cond_t* printCond;
     pthread_mutex_t* printMutex;
+    pthread_mutex_t* replicationMutex;
     pthread_mutex_t mutex;
     pthread_mutex_t rwMutex;
 } custom_mutex;
 
-void createCustomMutex(custom_mutex** customMutex, pthread_cond_t* pCond, pthread_mutex_t* pMutex);
+void createCustomMutex(custom_mutex** customMutex, pthread_cond_t* pCond, pthread_mutex_t* pMutex, pthread_mutex_t* rMutex);
 void customWriteMutexLock(custom_mutex* customMutex);
 void customWriteMutexUnlock(custom_mutex* customMutex, int dataUpdated);
 void customReadMutexLock(custom_mutex* customMutex);

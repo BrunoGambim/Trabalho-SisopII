@@ -12,6 +12,7 @@ typedef struct table_lines{
     char *macAddress;
     char *ipAddress;
     char *status;
+    int isManager;
     unsigned int timestamp;
     struct table_lines* nextLine;
 } table_line;
@@ -96,6 +97,32 @@ void findLineByHostname(char* hostname,table_line** line){
     }
 }
 
+void findManagerLine(table_line** line){
+    table_line* iteratorLine;
+    *line = NULL;
+    if(!isTableEmpty()){
+        iteratorLine = table;
+        while (iteratorLine->isManager != 1 && !isTheLastLine(iteratorLine)){
+            iteratorLine = iteratorLine->nextLine;
+        }
+        if(iteratorLine->isManager == 1){
+            *line = iteratorLine;
+        }
+    }
+}
+
+int hasManager(){
+    table_line* line;
+    findManagerLine(&line);
+    return line != NULL;
+}
+
+void getManagerIPAddress(char** ipAddress){
+    table_line* line;
+    findManagerLine(&line);
+    *ipAddress = strdup(line->ipAddress);
+}
+
 void findMACAddressByHostname(char* hostname, char** macAddress){
     table_line* line;
     findLineByHostname(hostname, &line);
@@ -162,21 +189,52 @@ void removeLineByHostname(char* hostname){
     
 }
 
+void setManagerByHostname(char *hostname){
+    table_line* line;
+    findLineByHostname(hostname,&line);
+    removeManager();
+    line->isManager = 1;
+}
+
+void removeManager(){
+    table_line* line;
+    findManagerLine(&line);
+    if(line != NULL){
+        line->isManager = 0;
+    }
+}
+
 void printLine(table_line* line){
     printf("%s        %s        %s        %s\n", line->hostname, line->macAddress, line->ipAddress, line->status);
 }
 
-void printTableHeader(){
+void printMemberHeader(){
     printf("Hostname           Endereco_MAC             Endereco_IP        Status\n");
 }
 
-void printTable(){
+void printMembers(){
     table_line* line;
     line = table;
-    printTableHeader();
+    printMemberHeader();
     while(line != NULL){
-        printLine(line);
+        if(!line->isManager){
+            printLine(line);
+        }
         line = line->nextLine;
+    }
+}
+
+void printManagerHeader(){
+    printf("Hostname           Endereco_MAC             Endereco_IP\n");
+}
+
+void printManager(){
+    table_line* line;
+    line = table;
+    findManagerLine(&line);
+    if(line != NULL){
+        printManagerHeader();
+        printLine(line);
     }
 }
 
@@ -186,14 +244,16 @@ int updateMembersStatus(){
     line = table;
     changedMembersCounter = 0;
     while(line != NULL){
-        if((getTimestamp() - line->timestamp) < MAXIMUM_UPDATE_INTERVAL){
-            if(strcmp(line->status,ASLEEP) == 0)
-                changedMembersCounter++;
-            strcpy(line->status,AWAKEN);
-        }else{
-            if(strcmp(line->status,AWAKEN) == 0)
-                changedMembersCounter++;
-            strcpy(line->status,ASLEEP);
+        if(!line->isManager){
+            if((getTimestamp() - line->timestamp) < MAXIMUM_UPDATE_INTERVAL){
+                if(strcmp(line->status,ASLEEP) == 0)
+                    changedMembersCounter++;
+                strcpy(line->status,AWAKEN);
+            }else{
+                if(strcmp(line->status,AWAKEN) == 0)
+                    changedMembersCounter++;
+                strcpy(line->status,ASLEEP);
+            }
         }
         line = line->nextLine;
     }
@@ -207,3 +267,37 @@ void updateTimestamp(char* hostname){
         line->timestamp = getTimestamp();
     }
 }
+
+void addBufferData(replication_buffer *buffer){
+    table_line* iteratorLine;
+    if(!isTableEmpty()){
+        iteratorLine = table;
+        while (iteratorLine != NULL){
+            addDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
+            if(strcmp(iteratorLine->status,AWAKEN) == 0 && !iteratorLine->isManager){
+                addMember(buffer, iteratorLine->ipAddress);
+            }
+            iteratorLine = iteratorLine->nextLine;
+        }
+    }
+}
+
+void updateBufferMembers(replication_buffer *buffer){
+    table_line* iteratorLine;
+    if(!isTableEmpty()){
+        iteratorLine = table;
+        while (iteratorLine != NULL){
+            if(strcmp(iteratorLine->status,AWAKEN) == 0 && !iteratorLine->isManager){
+                if(!hasMember(buffer,iteratorLine->ipAddress)){
+                    addMember(buffer, iteratorLine->ipAddress);
+                }
+            }else{
+                if(hasMember(buffer,iteratorLine->ipAddress)){
+                    removeMember(buffer, iteratorLine->ipAddress);
+                }
+            }
+            iteratorLine = iteratorLine->nextLine;
+        }
+    }
+}
+

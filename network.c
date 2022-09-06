@@ -16,7 +16,9 @@
 
 #define SEARCHING_HOSTNAME 0
 #define SEARCHING_MAC_ADRESS 1
-#define SEARCH_FINISHED 2
+#define SEARCHING_IP_ADRESS 2
+#define SEARCHING_STATUS 3
+#define SEARCH_FINISHED 4
 #define LOCAL "lo"
 
 char* localMACAddress;
@@ -107,7 +109,24 @@ void freePackage(package* pack){
     free(pack);
 }
 
-void createDataPackage(package** pack, char *hostname, char *macAddress){
+void createDataPackage(package** pack, char *hostname, char *macAddress, char *ipAddress, char *status){
+    package* newPackage;
+    newPackage = (package*) malloc(sizeof(package));
+
+    newPackage->payload[0] = 0;
+    strcat(newPackage->payload,hostname);
+    strcat(newPackage->payload,"\n");
+    strcat(newPackage->payload,macAddress);
+    strcat(newPackage->payload,"\n");
+    strcat(newPackage->payload,ipAddress);
+    strcat(newPackage->payload,"\n");
+    strcat(newPackage->payload,status);
+    strcat(newPackage->payload,"\n");
+
+    *pack = newPackage;
+}
+
+void createDiscoveryPackage(package** pack, char *hostname, char *macAddress){
     package* newPackage;
     newPackage = (package*) malloc(sizeof(package));
 
@@ -154,7 +173,7 @@ void createMagicPackage(package** pack, char *macAddress){
     *pack = newPackage;
 }
 
-void unpackDataPackage(package* pack, char **hostname, char **macAddress){
+void unpackDiscoveryPackage(package* pack, char **hostname, char **macAddress){
     char buffer[BUFFER_SIZE];
     int i,bufferIndex,searching_flag;
 
@@ -170,6 +189,36 @@ void unpackDataPackage(package* pack, char **hostname, char **macAddress){
                 searching_flag = SEARCHING_MAC_ADRESS;
             }else if(searching_flag == SEARCHING_MAC_ADRESS){
                 *macAddress = strdup(buffer);
+                searching_flag = SEARCH_FINISHED;
+            }
+            bufferIndex = -1;
+        }
+        bufferIndex++;
+    }
+    freePackage(pack);
+}
+
+void unpackDataPackage(package* pack, char **hostname, char **macAddress, char **ipAddress, char **status){
+    char buffer[BUFFER_SIZE];
+    int i,bufferIndex,searching_flag;
+    bufferIndex = 0;
+    searching_flag = SEARCHING_HOSTNAME;
+    for(i = 0; pack->payload[i] != 0; i++){
+        if(pack->payload[i] != '\n'){
+            buffer[bufferIndex] = pack->payload[i];
+        }else{
+            buffer[bufferIndex] = 0;
+            if(searching_flag == SEARCHING_HOSTNAME){
+                *hostname = strdup(buffer);
+                searching_flag = SEARCHING_MAC_ADRESS;
+            }else if(searching_flag == SEARCHING_MAC_ADRESS){
+                *macAddress = strdup(buffer);
+                searching_flag = SEARCHING_IP_ADRESS;
+            }else if(searching_flag == SEARCHING_IP_ADRESS){
+                *ipAddress = strdup(buffer);
+                searching_flag = SEARCHING_STATUS;
+            }else if(searching_flag == SEARCHING_STATUS){
+                *status = strdup(buffer);
                 searching_flag = SEARCH_FINISHED;
             }
             bufferIndex = -1;
