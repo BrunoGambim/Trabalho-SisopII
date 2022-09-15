@@ -25,3 +25,4 @@ void addBufferData(replication_buffer *buffer);
 void updateBufferMembers(replication_buffer *buffer);
 void getMemberIpListOfGTIdMembers(member_ip_list** list, char *hostname);
 void getMemberIpListOfLTIdMembers(member_ip_list** list, char *hostname);
+void markLineToRemove(char* hostname);

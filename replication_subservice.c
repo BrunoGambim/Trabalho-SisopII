@@ -49,24 +49,27 @@ void* replicationMemberRoutine(){
     char* ipAddress;
     char* managerIp;
     char* status;
+    char* mark;
     while(TRUE){
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
         serve(&pack,&managerIp,replicationBroadcastSocket);
         pthread_testcancel();
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
 
-        unpackDataPackage(pack,&hostname,&macAddress,&ipAddress,&status);
+        unpackDataPackage(pack,&hostname,&macAddress,&ipAddress,&status,&mark);
         sendAckPackage(managerIp, hostname);
 
         customWriteMutexLock(customMutex);
-        if(!isHostnameInTheTable(hostname)){
+        if(!isHostnameInTheTable(hostname) && strcmp(mark,NOT_MARKED) == 0){
             addLine(hostname,macAddress,ipAddress,status);
             customWriteMutexUnlock(customMutex,DATA_UPDATED);
-        }else if(!memberStatusIs(hostname,status)){
-	    removeLineByHostname(hostname);
-	    addLine(hostname,macAddress,ipAddress,status);
+        }else if(!memberStatusIs(hostname,status) && strcmp(mark,NOT_MARKED) == 0){
+            removeLineByHostname(hostname);
+            addLine(hostname,macAddress,ipAddress,status);
             customWriteMutexUnlock(customMutex,DATA_UPDATED);
-	}else{
+        }else if(isHostnameInTheTable(hostname) && strcmp(mark,MARKED) == 0){
+            removeLineByHostname(hostname);
+        }else{
             customWriteMutexUnlock(customMutex,DATA_NOT_UPDATED);
         }
 
@@ -87,7 +90,7 @@ void* replicationDataSenderManagerRoutine(){
 
         node = buffer->dataList;
         while(node != NULL){
-            createDataPackage(&pack,node->hostname,node->macAddress,node->ipAddress,node->status);
+            createDataPackage(&pack,node->hostname,node->macAddress,node->ipAddress,node->status, node->mark);
             sendPackage(pack,REPLICATION_PORT,broadcastIp);
             freePackage(pack);
             pack = NULL;

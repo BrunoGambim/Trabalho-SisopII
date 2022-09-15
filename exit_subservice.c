@@ -57,7 +57,7 @@ void* exitReceiverManagerRoutine(){
         unpackHostnamePackage(pack,&hostname);
         
         customWriteMutexLock(customMutex);
-        removeLineByHostname(hostname);
+        markLineToRemove(hostname);
         customWriteMutexUnlock(customMutex, DATA_UPDATED);
         
         free(hostname);

@@ -19,6 +19,8 @@ typedef struct table_lines{
 
 table_line *table;
 
+table_line *markedLines;
+
 int isTableEmpty(){
     return table == NULL;
 }
@@ -240,7 +242,40 @@ void removeLineByHostname(char* hostname){
             freeLine(line);
         }
     }
-    
+}
+
+void addLineToMarkedLines(table_line *line){
+    table_line* iteratorLine;
+    if(markedLines == NULL){
+        markedLines = iteratorLine;
+    } else{
+        iteratorLine = markedLines;
+        while(iteratorLine->nextLine != NULL){
+            iteratorLine = iteratorLine->nextLine;
+        }
+        iteratorLine->nextLine = line;
+        line->nextLine = NULL;
+    }
+}
+
+void markLineToRemove(char* hostname){
+    table_line* line;
+    table_line* prevLine;
+    findLineByHostname(hostname, &line);
+    if(line != NULL){
+        if(line == table){
+            addLineToMarkedLines(line);
+	        table = line->nextLine;
+        }else{
+	        findPrevLineByHostname(hostname, &prevLine);
+            if(!isTheLastLine(line)){
+                prevLine->nextLine = line->nextLine;
+            }else{
+                prevLine->nextLine = NULL;
+	        }
+            addLineToMarkedLines(line);
+        }
+    }
 }
 
 void setManagerByHostname(char *hostname){
@@ -326,7 +361,17 @@ void updateTimestamp(char* hostname){
 }
 
 void addBufferData(replication_buffer *buffer){
-    table_line* iteratorLine;
+    table_line *iteratorLine , *auxLine;
+    if(markedLines != NULL){
+        iteratorLine = markedLines;
+        while(iteratorLine != NULL){
+            auxLine = iteratorLine;
+            addMarkedDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
+            iteratorLine = iteratorLine->nextLine;
+            freeLine(auxLine);
+        }
+        markedLines = NULL;
+    }
     if(!isTableEmpty()){
         iteratorLine = table;
         while (iteratorLine != NULL){
@@ -341,13 +386,21 @@ void addBufferData(replication_buffer *buffer){
 }
 
 void updateBuffer(replication_buffer *buffer){
-    table_line* iteratorLine;
+    table_line* iteratorLine, *auxLine;
+    if(markedLines != NULL){
+        iteratorLine = markedLines;
+        while(iteratorLine != NULL){
+            auxLine = iteratorLine;
+            addMarkedDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
+            iteratorLine = iteratorLine->nextLine;
+            freeLine(auxLine);
+        }
+        markedLines = NULL;
+    }
     if(!isTableEmpty()){
         iteratorLine = table;
         while (iteratorLine != NULL){
-            if(!hasData(buffer,iteratorLine->hostname)){
-                addDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
-            }
+            addDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
             if(strcmp(iteratorLine->status,AWAKEN) == 0 && !iteratorLine->isManager){
                 if(!hasMember(buffer,iteratorLine->ipAddress)){
                     addMember(buffer, iteratorLine->ipAddress);

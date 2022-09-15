@@ -18,7 +18,8 @@
 #define SEARCHING_MAC_ADRESS 1
 #define SEARCHING_IP_ADRESS 2
 #define SEARCHING_STATUS 3
-#define SEARCH_FINISHED 4
+#define SEARCHING_MARK 4
+#define SEARCH_FINISHED 5
 #define LOCAL "lo"
 
 char* localMACAddress;
@@ -109,7 +110,7 @@ void freePackage(package* pack){
     free(pack);
 }
 
-void createDataPackage(package** pack, char *hostname, char *macAddress, char *ipAddress, char *status){
+void createDataPackage(package** pack, char *hostname, char *macAddress, char *ipAddress, char *status, char *mark){
     package* newPackage;
     newPackage = (package*) malloc(sizeof(package));
 
@@ -121,6 +122,8 @@ void createDataPackage(package** pack, char *hostname, char *macAddress, char *i
     strcat(newPackage->payload,ipAddress);
     strcat(newPackage->payload,"\n");
     strcat(newPackage->payload,status);
+    strcat(newPackage->payload,"\n");
+    strcat(newPackage->payload,mark);
     strcat(newPackage->payload,"\n");
 
     *pack = newPackage;
@@ -235,7 +238,7 @@ void unpackDiscoveryPackage(package* pack, char **hostname, char **macAddress){
     freePackage(pack);
 }
 
-void unpackDataPackage(package* pack, char **hostname, char **macAddress, char **ipAddress, char **status){
+void unpackDataPackage(package* pack, char **hostname, char **macAddress, char **ipAddress, char **status, char **mark){
     char buffer[BUFFER_SIZE];
     int i,bufferIndex,searching_flag;
     bufferIndex = 0;
@@ -256,6 +259,9 @@ void unpackDataPackage(package* pack, char **hostname, char **macAddress, char *
                 searching_flag = SEARCHING_STATUS;
             }else if(searching_flag == SEARCHING_STATUS){
                 *status = strdup(buffer);
+                searching_flag = SEARCHING_MARK;
+            }else if(searching_flag == SEARCHING_MARK){
+                *mark = strdup(buffer);
                 searching_flag = SEARCH_FINISHED;
             }
             bufferIndex = -1;

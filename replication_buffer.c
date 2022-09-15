@@ -49,25 +49,71 @@ void createReplicationBuffer(replication_buffer **buffer){
 
 void addDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAddress, char *ipAddress, char *status){
     data_node *data;
-    buffer->dataNumber += 1;
     if(buffer->dataList == NULL){
         buffer->dataList = (data_node*) malloc(sizeof(data_node));
         buffer->dataList->hostname = strdup(hostname);
         buffer->dataList->macAddress = strdup(macAddress);
         buffer->dataList->ipAddress = strdup(ipAddress);
         buffer->dataList->status = strdup(status);
+        buffer->dataList->mark = strdup(NOT_MARKED);
         buffer->dataList->nextNode = NULL;
+        buffer->dataNumber += 1;
     }else{
-        data = buffer->dataList;
-        while(data->nextNode != NULL){
-            data = data->nextNode;
+        if(strcmp(buffer->dataList->hostname,hostname) == 0){
+            strcpy(buffer->dataList->mark,NOT_MARKED);
+        }else{
+            data = buffer->dataList;
+            while(data->nextNode != NULL || strcmp(data->hostname,hostname) == 0){
+                data = data->nextNode;
+            }
+            if(strcmp(data->hostname,hostname) == 0){
+                strcpy(buffer->dataList->mark,NOT_MARKED);
+            }else{
+                data->nextNode = (data_node*) malloc(sizeof(data_node));
+                data->nextNode->hostname = strdup(hostname);
+                data->nextNode->macAddress = strdup(macAddress);
+                data->nextNode->ipAddress = strdup(ipAddress);
+                data->nextNode->status = strdup(status);
+                buffer->dataList->mark = strdup(NOT_MARKED);
+                data->nextNode->nextNode = NULL;
+                buffer->dataNumber += 1;
+            }
         }
-        data->nextNode = (data_node*) malloc(sizeof(data_node));
-        data->nextNode->hostname = strdup(hostname);
-        data->nextNode->macAddress = strdup(macAddress);
-        data->nextNode->ipAddress = strdup(ipAddress);
-        data->nextNode->status = strdup(status);
-        data->nextNode->nextNode = NULL;
+    }
+}
+
+void addMarkedDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAddress, char *ipAddress, char *status){
+    data_node *data;
+    if(buffer->dataList == NULL){
+        buffer->dataList = (data_node*) malloc(sizeof(data_node));
+        buffer->dataList->hostname = strdup(hostname);
+        buffer->dataList->macAddress = strdup(macAddress);
+        buffer->dataList->ipAddress = strdup(ipAddress);
+        buffer->dataList->status = strdup(status);
+        buffer->dataList->mark = strdup(MARKED);
+        buffer->dataList->nextNode = NULL;
+        buffer->dataNumber += 1;
+    }else{
+        if(strcmp(buffer->dataList->hostname,hostname) == 0){
+            strcpy(buffer->dataList->mark,MARKED);
+        }else{
+            data = buffer->dataList;
+            while(data->nextNode != NULL || strcmp(data->hostname,hostname) == 0){
+                data = data->nextNode;
+            }
+            if(strcmp(data->hostname,hostname) == 0){
+                strcpy(buffer->dataList->mark,MARKED);
+            }else{
+                data->nextNode = (data_node*) malloc(sizeof(data_node));
+                data->nextNode->hostname = strdup(hostname);
+                data->nextNode->macAddress = strdup(macAddress);
+                data->nextNode->ipAddress = strdup(ipAddress);
+                data->nextNode->status = strdup(status);
+                buffer->dataList->mark = strdup(MARKED);
+                data->nextNode->nextNode = NULL;
+                buffer->dataNumber += 1;
+            }
+        }
     }
 }
 
@@ -174,37 +220,6 @@ void removeMember(replication_buffer *buffer, char *ipAddress){
         }
         free(node->ipAddress);
         free(node);
-        node = NULL;
-    }
-}
-
-int hasData(replication_buffer *buffer, char *hostname){
-    data_node *node;
-    node = buffer->dataList;
-    while(node != NULL){
-        if(strcmp(node->hostname,hostname) == 0){
-            return 1;
-        }
-        node = node->nextNode;
-    }
-    return 0;
-}
-
-void removeDataNode(replication_buffer *buffer, char *hostname){
-    data_node *node, *node2;
-    if(hasData(buffer, hostname)){
-        node = buffer->dataList;
-        if(strcmp(buffer->dataList->hostname,hostname) == 0){
-            buffer->dataList = buffer->dataList->nextNode;
-        }else{
-            while(strcmp(node->nextNode->hostname,hostname) != 0){
-                node = node->nextNode;
-            }
-            node2 = node;
-            node = node->nextNode;
-            node2->nextNode = node2->nextNode->nextNode;
-        }
-        freeDataNode(node);
         node = NULL;
     }
 }

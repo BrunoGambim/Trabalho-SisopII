@@ -1,6 +1,9 @@
 #ifndef REPLICATION_BUFFER_H
 #define REPLICATION_BUFFER_H
 
+#define NOT_MARKED "0"
+#define MARKED "1"
+
 typedef struct _ack_node{
     char *hostname;
     struct _ack_node* nextNode;
@@ -11,6 +14,7 @@ typedef struct _data_node{
     char *macAddress;
     char *ipAddress;
     char *status;
+    char *mark;
     struct _data_node* nextNode;
 } data_node;
 
@@ -36,7 +40,6 @@ int isBufferAcked(replication_buffer *buffer);
 void removeMember(replication_buffer *buffer, char *ipAddress);
 void addMember(replication_buffer *buffer, char *ipAddress);
 int hasMember(replication_buffer *buffer, char *ipAddress);
-int hasData(replication_buffer *buffer, char *hostname);
-void removeDataNode(replication_buffer *buffer, char *hostname);
+void addMarkedDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAddress, char *ipAddress, char *status);
 
 #endif
