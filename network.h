@@ -3,8 +3,12 @@
 #define UPDATE_PORT     8082
 #define EXIT_PORT     8083
 #define REPLICATION_PORT     8084
+#define ELECTION_PORT     8085
 #define MAGIC_PACKAGE_PORT     7
 #define PAYLOAD_SIZE 500
+#define ELECTION "1"
+#define ANSWER "2"
+#define COORDINATOR "3"
 
 typedef struct _package{
     char payload[PAYLOAD_SIZE]; 
@@ -19,6 +23,10 @@ void createDiscoveryPackage(package** pack, char *hostname, char *macAddress);
 void createHostnamePackage(package** pack, char *hostname);
 void createEmptyPackage(package** pack);
 void createMagicPackage(package** pack, char *macAddress);
+void createElectionPackage(package** pack);
+void createAnswerPackage(package** pack);
+void createCoordinatorPackage(package** pack);
+void unpackElectionPackage(package* pack, char **payload);
 void unpackDataPackage(package* pack, char **hostname, char **macAddress, char **ipAddress, char **status);
 void unpackDiscoveryPackage(package* pack, char **hostname, char **macAddress);
 void unpackHostnamePackage(package* pack, char **hostname);

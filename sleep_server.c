@@ -2,31 +2,76 @@
 #include <stdio.h>
 #include <stdlib.h> 
 #include <unistd.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include "network.h"
+#include "members_table.h"
+#include "discovery_subservice.h"
+#include "election_subservice.h"
+#include "exit_subservice.h"
+#include "interface_reader_subservice.h"
+#include "print_subservice.h"
+#include "replication_subservice.h"
+#include "update_status_subservice.h"
 
-#define MANAGER_PATH "./manager"
-#define MEMBER_PATH "./member"
 #define MANAGER_FLAG "manager"
 #define NO_ARGS 1
 #define ONE_ARG 2
 
-void tryExec(char *path);
+custom_mutex* customMutex;
 
-int main(int argc, char **argv){
-    if(argc == NO_ARGS){ 
-        tryExec(MEMBER_PATH);
-    } else if(strcmp(argv[1],MANAGER_FLAG) == 0 && argc == ONE_ARG){ 
-        tryExec(MANAGER_PATH);
-    } else{
-        printf("Entrada errada");  
-        exit(EXIT_FAILURE);
-    }
-    printf("Fim \n");  
-    return 0;
+void* stopAllSubservices(){
+    stopDiscoverySubservice();
+    stopElectionSubservice();
+    stopExitSubservice();
+    stopInterfaceReaderSubservice();
+    stopPrintSubservice();
+    stopReplicationSubservice();
+    stopUpdateStatusSubservice();
 }
 
-void tryExec(char *path){
-    char* args[] = { NULL, NULL };
-    args[0] = path;
-    if(execvp(args[0], args) == -1) 
-        exit(EXIT_FAILURE);
+void* runAsManager(){
+    changeReplicationSubserviceToManager();
+    changeDiscoverySubserviceToManager();
+    changeExitSubserviceToManager();
+    changeInterfaceReaderSubserviceToManager();
+    changeUpdateStatusSubserviceToManager();
+}
+
+void* runAsMember(){
+    changeReplicationSubserviceToMember();
+    changeDiscoverySubserviceToMember();
+    changeExitSubserviceToMember();
+    changeInterfaceReaderSubserviceToMember();
+    changeUpdateStatusSubserviceToMember();
+}
+
+int main(int argc, char **argv){//TODO colocar locks e unlocks de forma correta nos novos serviços
+    char* ipAddress;
+    char* hostname;
+    char* macAddress;
+
+    initNetworkGlobalVariables();
+    getIPAddress(&ipAddress);
+    getMACAddress(&macAddress);
+    getHostname(&hostname);
+
+    if(!isHostnameInTheTable(hostname)){
+        addLine(hostname,macAddress,ipAddress,AWAKEN);
+    }
+
+
+    createCustomMutex(&customMutex);
+
+    runPrintSubservice(customMutex);
+    runReplicationSubservice(customMutex);
+    
+    runDiscoverySubservice(customMutex, runAsMember);
+    runExitSubservice(customMutex,stopAllSubservices);
+    runInterfaceReaderSubservice(customMutex);
+    runUpdateStatusSubservice(customMutex);
+    runElectionSubservice(customMutex, runAsManager, runAsMember);
+
+    while(1){}
+    return 0;
 }

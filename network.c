@@ -153,6 +153,8 @@ void createEmptyPackage(package** pack){
     *pack = (package*) malloc(sizeof(package));
 }
 
+
+
 void createMagicPackage(package** pack, char *macAddress){
     package* newPackage;
     char mac[6], buffer[5];
@@ -171,6 +173,41 @@ void createMagicPackage(package** pack, char *macAddress){
 	}
 
     *pack = newPackage;
+}
+
+void createElectionPackage(package** pack){
+    package* newPackage;
+    newPackage = (package*) malloc(sizeof(package));
+
+    newPackage->payload[0] = 0;
+    strcat(newPackage->payload,ELECTION);
+
+    *pack = newPackage;
+}
+
+void createAnswerPackage(package** pack){
+    package* newPackage;
+    newPackage = (package*) malloc(sizeof(package));
+
+    newPackage->payload[0] = 0;
+    strcat(newPackage->payload,ANSWER);
+
+    *pack = newPackage;
+}
+
+void createCoordinatorPackage(package** pack){
+    package* newPackage;
+    newPackage = (package*) malloc(sizeof(package));
+
+    newPackage->payload[0] = 0;
+    strcat(newPackage->payload,COORDINATOR);
+
+    *pack = newPackage;
+}
+
+void unpackElectionPackage(package* pack, char **payload){
+    *payload = strdup(pack->payload);
+    freePackage(pack);
 }
 
 void unpackDiscoveryPackage(package* pack, char **hostname, char **macAddress){

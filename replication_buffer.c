@@ -44,6 +44,7 @@ void createReplicationBuffer(replication_buffer **buffer){
     *buffer = (replication_buffer*) malloc(sizeof(replication_buffer));
     (*buffer)->dataNumber = 0;
     (*buffer)->dataList = NULL;
+    (*buffer)->memberList = NULL;
 }
 
 void addDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAddress, char *ipAddress, char *status){
@@ -76,7 +77,7 @@ void ackNode(member_node *member, char *hostname){
         member->ackCounter += 1;
         member->acks = (ack_node*) malloc(sizeof(ack_node));
         member->acks->hostname = strdup(hostname);
-        member->nextNode = NULL;
+        member->acks->nextNode = NULL;
     }else{
         ack = member->acks;
         while(ack->nextNode != NULL){
@@ -173,6 +174,37 @@ void removeMember(replication_buffer *buffer, char *ipAddress){
         }
         free(node->ipAddress);
         free(node);
+        node = NULL;
+    }
+}
+
+int hasData(replication_buffer *buffer, char *hostname){
+    data_node *node;
+    node = buffer->dataList;
+    while(node != NULL){
+        if(strcmp(node->hostname,hostname) == 0){
+            return 1;
+        }
+        node = node->nextNode;
+    }
+    return 0;
+}
+
+void removeDataNode(replication_buffer *buffer, char *hostname){
+    data_node *node, *node2;
+    if(hasData(buffer, hostname)){
+        node = buffer->dataList;
+        if(strcmp(buffer->dataList->hostname,hostname) == 0){
+            buffer->dataList = buffer->dataList->nextNode;
+        }else{
+            while(strcmp(node->nextNode->hostname,hostname) != 0){
+                node = node->nextNode;
+            }
+            node2 = node;
+            node = node->nextNode;
+            node2->nextNode = node2->nextNode->nextNode;
+        }
+        freeDataNode(node);
         node = NULL;
     }
 }

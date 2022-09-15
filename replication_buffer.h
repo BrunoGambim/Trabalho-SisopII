@@ -36,5 +36,7 @@ int isBufferAcked(replication_buffer *buffer);
 void removeMember(replication_buffer *buffer, char *ipAddress);
 void addMember(replication_buffer *buffer, char *ipAddress);
 int hasMember(replication_buffer *buffer, char *ipAddress);
+int hasData(replication_buffer *buffer, char *hostname);
+void removeDataNode(replication_buffer *buffer, char *hostname);
 
 #endif

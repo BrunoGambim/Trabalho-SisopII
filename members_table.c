@@ -64,6 +64,7 @@ void addLine(char *hostname, char *macAddress, char *ipAddress, char *status){
     newLine->status = strdup(status);
 
     newLine->timestamp = getTimestamp();
+    newLine->isManager = 0;
 
     newLine->nextLine = NULL;
     insertLine(newLine);
@@ -83,6 +84,22 @@ int isHostnameInTheTable(char* hostname){
     return 0;
 }
 
+int memberStatusIs(char* hostname,char* status){
+    table_line* iteratorLine;
+    if(!isTableEmpty()){
+        iteratorLine = table;
+        while (iteratorLine != NULL){
+            if(strcmp(hostname, iteratorLine->hostname) == 0){
+  	        if(strcmp(status, iteratorLine->status) == 0){
+                    return 1;
+                }
+            }
+            iteratorLine = iteratorLine->nextLine;
+        }
+    }
+    return 0;
+}
+
 void findLineByHostname(char* hostname,table_line** line){
     table_line* iteratorLine;
     *line = NULL;
@@ -94,6 +111,30 @@ void findLineByHostname(char* hostname,table_line** line){
         if(strcmp(hostname, iteratorLine->hostname) == 0){
             *line = iteratorLine;
         }
+    }
+}
+
+void findLineByIPAddress(char* ipAddress,table_line** line){
+    table_line* iteratorLine;
+    *line = NULL;
+    if(!isTableEmpty()){
+        iteratorLine = table;
+        while (strcmp(ipAddress, iteratorLine->ipAddress) != 0 && !isTheLastLine(iteratorLine)){
+            iteratorLine = iteratorLine->nextLine;
+        }
+        if(strcmp(ipAddress, iteratorLine->ipAddress) == 0){
+            *line = iteratorLine;
+        }
+    }
+}
+
+void findHostnameByIPAddress(char** hostname, char* ipAddress){
+    table_line* line;
+    findLineByIPAddress(ipAddress, &line);
+    if(line != NULL){
+        *hostname = strdup(line->hostname);
+    }else{
+        *hostname = NULL;
     }
 }
 
@@ -119,8 +160,22 @@ int hasManager(){
 
 void getManagerIPAddress(char** ipAddress){
     table_line* line;
-    findManagerLine(&line);
-    *ipAddress = strdup(line->ipAddress);
+    if(hasManager()){
+        findManagerLine(&line);
+        *ipAddress = strdup(line->ipAddress);
+    }else{
+        *ipAddress = NULL;
+    }
+}
+
+void getManagerHostname(char** hostname){
+    table_line* line;
+    if(hasManager){
+        findManagerLine(&line);
+        *hostname = strdup(line->hostname);
+    }else {
+        *hostname = NULL;
+    }
 }
 
 void findMACAddressByHostname(char* hostname, char** macAddress){
@@ -138,8 +193,7 @@ void findIPAddressByHostname(char* hostname, char** ipAddress){
     table_line* line;
     findLineByHostname(hostname, &line);
     if(line != NULL){
-        *ipAddress = (char*) malloc((strlen(line->ipAddress)+5)*sizeof(char));
-        strcpy(*ipAddress,line->ipAddress);
+        *ipAddress = strdup(line->ipAddress);
     }else{
         *ipAddress = NULL;
     }
@@ -191,9 +245,12 @@ void removeLineByHostname(char* hostname){
 
 void setManagerByHostname(char *hostname){
     table_line* line;
+    if(hasManager()){
+        removeManager();
+    }
     findLineByHostname(hostname,&line);
-    removeManager();
     line->isManager = 1;
+    line->status = strdup(AWAKEN);
 }
 
 void removeManager(){
@@ -248,11 +305,11 @@ int updateMembersStatus(){
             if((getTimestamp() - line->timestamp) < MAXIMUM_UPDATE_INTERVAL){
                 if(strcmp(line->status,ASLEEP) == 0)
                     changedMembersCounter++;
-                strcpy(line->status,AWAKEN);
+                strcpy(line->status, AWAKEN);
             }else{
                 if(strcmp(line->status,AWAKEN) == 0)
                     changedMembersCounter++;
-                strcpy(line->status,ASLEEP);
+                strcpy(line->status, ASLEEP);
             }
         }
         line = line->nextLine;
@@ -273,6 +330,7 @@ void addBufferData(replication_buffer *buffer){
     if(!isTableEmpty()){
         iteratorLine = table;
         while (iteratorLine != NULL){
+	    printf("%s",iteratorLine->hostname);
             addDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
             if(strcmp(iteratorLine->status,AWAKEN) == 0 && !iteratorLine->isManager){
                 addMember(buffer, iteratorLine->ipAddress);
@@ -282,11 +340,14 @@ void addBufferData(replication_buffer *buffer){
     }
 }
 
-void updateBufferMembers(replication_buffer *buffer){
+void updateBuffer(replication_buffer *buffer){
     table_line* iteratorLine;
     if(!isTableEmpty()){
         iteratorLine = table;
         while (iteratorLine != NULL){
+            if(!hasData(buffer,iteratorLine->hostname)){
+                addDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
+            }
             if(strcmp(iteratorLine->status,AWAKEN) == 0 && !iteratorLine->isManager){
                 if(!hasMember(buffer,iteratorLine->ipAddress)){
                     addMember(buffer, iteratorLine->ipAddress);
@@ -301,3 +362,30 @@ void updateBufferMembers(replication_buffer *buffer){
     }
 }
 
+void getMemberIpListOfLTIdMembers(member_ip_list** list, char *hostname){
+    table_line* iteratorLine;
+    createMemberIpList(list);
+    if(!isTableEmpty()){
+        iteratorLine = table;
+        while (iteratorLine != NULL){
+            if(strcmp(hostname,iteratorLine->hostname) > 0){
+                addMemberIpToList(*list,iteratorLine->ipAddress);
+            }
+            iteratorLine = iteratorLine->nextLine;
+        }
+    }
+}
+
+void getMemberIpListOfGTIdMembers(member_ip_list** list, char *hostname){
+    table_line* iteratorLine;
+    createMemberIpList(list);
+    if(!isTableEmpty()){
+        iteratorLine = table;
+        while (iteratorLine != NULL){
+            if(strcmp(hostname,iteratorLine->hostname) < 0){
+                addMemberIpToList(*list,iteratorLine->ipAddress);
+            }
+            iteratorLine = iteratorLine->nextLine;
+        }
+    }
+}
