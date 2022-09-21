@@ -69,6 +69,7 @@ void* replicationMemberRoutine(){
             customWriteMutexUnlock(customMutex,DATA_UPDATED);
         }else if(isHostnameInTheTable(hostname) && strcmp(mark,MARKED) == 0){
             removeLineByHostname(hostname);
+            customWriteMutexUnlock(customMutex,DATA_UPDATED);
         }else{
             customWriteMutexUnlock(customMutex,DATA_NOT_UPDATED);
         }
@@ -87,7 +88,6 @@ void* replicationDataSenderManagerRoutine(){
     int i;
     getBroadcastIPAddress(&broadcastIp);
     while(TRUE){
-
         node = buffer->dataList;
         while(node != NULL){
             createDataPackage(&pack,node->hostname,node->macAddress,node->ipAddress,node->status, node->mark);
@@ -117,7 +117,6 @@ void* replicationDataSenderManagerRoutine(){
             pthread_join(replicationReceiverThread,NULL);
 
             replicationState = REPLICATION_FINISHED;
-
             pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
             pthread_testcancel();
         }else{

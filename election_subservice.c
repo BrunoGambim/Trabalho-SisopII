@@ -51,7 +51,7 @@ void* coordinatorSenderRoutine(){
     }
 
     pthread_mutex_lock(&electionMutex);
-    if(electionState == ELECTION_STARTED || electionState == WAITING_FOR_ANSWER){
+    if(electionState == ELECTION_STARTED || electionState == WAITING_FOR_ANSWER){//TODO testar tirar a condição election started e ver se funciona
         getHostname(&hostname);
         createCoordinatorPackage(&pack);
         
@@ -87,7 +87,7 @@ void* electionSenderRoutine(){
     pthread_mutex_lock(&electionMutex);
     if(electionState == WAITING_FOR_COORDINATOR){
         pthread_mutex_unlock(&electionMutex);
-        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);//TODO talvez de erro no join caso a thread não esteja rodando
         sleep(WAITING_FOR_COORDINATOR_PERIOD);
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
     }else {

@@ -63,7 +63,7 @@ void addDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAd
             strcpy(buffer->dataList->mark,NOT_MARKED);
         }else{
             data = buffer->dataList;
-            while(data->nextNode != NULL || strcmp(data->hostname,hostname) == 0){
+            while(data->nextNode != NULL && strcmp(data->hostname,hostname) != 0){
                 data = data->nextNode;
             }
             if(strcmp(data->hostname,hostname) == 0){
@@ -74,7 +74,7 @@ void addDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAd
                 data->nextNode->macAddress = strdup(macAddress);
                 data->nextNode->ipAddress = strdup(ipAddress);
                 data->nextNode->status = strdup(status);
-                buffer->dataList->mark = strdup(NOT_MARKED);
+                data->nextNode->mark = strdup(NOT_MARKED);
                 data->nextNode->nextNode = NULL;
                 buffer->dataNumber += 1;
             }
@@ -98,7 +98,7 @@ void addMarkedDataNodeToBuffer(replication_buffer *buffer, char *hostname, char 
             strcpy(buffer->dataList->mark,MARKED);
         }else{
             data = buffer->dataList;
-            while(data->nextNode != NULL || strcmp(data->hostname,hostname) == 0){
+            while(data->nextNode != NULL && strcmp(data->hostname,hostname) != 0){
                 data = data->nextNode;
             }
             if(strcmp(data->hostname,hostname) == 0){
@@ -109,7 +109,7 @@ void addMarkedDataNodeToBuffer(replication_buffer *buffer, char *hostname, char 
                 data->nextNode->macAddress = strdup(macAddress);
                 data->nextNode->ipAddress = strdup(ipAddress);
                 data->nextNode->status = strdup(status);
-                buffer->dataList->mark = strdup(MARKED);
+                data->nextNode->mark = strdup(MARKED);
                 data->nextNode->nextNode = NULL;
                 buffer->dataNumber += 1;
             }

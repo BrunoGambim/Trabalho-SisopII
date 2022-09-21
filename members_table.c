@@ -265,14 +265,15 @@ void markLineToRemove(char* hostname){
     if(line != NULL){
         if(line == table){
             addLineToMarkedLines(line);
-	        table = line->nextLine;
+	    table = line->nextLine;
         }else{
-	        findPrevLineByHostname(hostname, &prevLine);
+	    findPrevLineByHostname(hostname, &prevLine);
             if(!isTheLastLine(line)){
                 prevLine->nextLine = line->nextLine;
+                line->nextLine = NULL;
             }else{
                 prevLine->nextLine = NULL;
-	        }
+	    }
             addLineToMarkedLines(line);
         }
     }
@@ -369,13 +370,13 @@ void addBufferData(replication_buffer *buffer){
             addMarkedDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
             iteratorLine = iteratorLine->nextLine;
             freeLine(auxLine);
+            auxLine = NULL;
         }
         markedLines = NULL;
     }
     if(!isTableEmpty()){
         iteratorLine = table;
         while (iteratorLine != NULL){
-	    printf("%s",iteratorLine->hostname);
             addDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
             if(strcmp(iteratorLine->status,AWAKEN) == 0 && !iteratorLine->isManager){
                 addMember(buffer, iteratorLine->ipAddress);
@@ -394,6 +395,7 @@ void updateBuffer(replication_buffer *buffer){
             addMarkedDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
             iteratorLine = iteratorLine->nextLine;
             freeLine(auxLine);
+            auxLine = NULL;
         }
         markedLines = NULL;
     }

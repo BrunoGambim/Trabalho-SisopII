@@ -46,7 +46,7 @@ void* runAsMember(){
     changeUpdateStatusSubserviceToMember();
 }
 
-int main(int argc, char **argv){//TODO colocar locks e unlocks de forma correta nos novos serviços
+int main(int argc, char **argv){
     char* ipAddress;
     char* hostname;
     char* macAddress;
