@@ -3,4 +3,3 @@
 #include <semaphore.h>
 
 void runPrintSubservice(custom_mutex *mutex);
-void stopPrintSubservice();

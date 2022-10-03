@@ -126,10 +126,6 @@ void changeUpdateStatusSubserviceToManager(){
 }
 
 void stopUpdateStatusSubservice(){
-    pthread_cancel(updateStatusSenderThread);
-    pthread_cancel(updateStatusReceiverThread);
-    pthread_cancel(updateStatusThread);
-    pthread_cancel(updateStatusSubserviceControllerThread);
     closeSocket(updateStatusSocket);
 }
 

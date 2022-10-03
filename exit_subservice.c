@@ -107,8 +107,6 @@ void changeExitSubserviceToManager(){
 }
 
 void stopExitSubservice(){
-    pthread_cancel(exitReceiverThread);
-    pthread_cancel(exitSubserviceControllerThread);
     closeSocket(exitSocket);
 }
 

@@ -51,7 +51,7 @@ void* coordinatorSenderRoutine(){
     }
 
     pthread_mutex_lock(&electionMutex);
-    if(electionState == ELECTION_STARTED || electionState == WAITING_FOR_ANSWER){//TODO testar tirar a condição election started e ver se funciona
+    if(electionState == WAITING_FOR_ANSWER){
         getHostname(&hostname);
         createCoordinatorPackage(&pack);
         
@@ -87,7 +87,7 @@ void* electionSenderRoutine(){
     pthread_mutex_lock(&electionMutex);
     if(electionState == WAITING_FOR_COORDINATOR){
         pthread_mutex_unlock(&electionMutex);
-        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);//TODO talvez de erro no join caso a thread não esteja rodando
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
         sleep(WAITING_FOR_COORDINATOR_PERIOD);
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
     }else {
@@ -115,8 +115,8 @@ void* electionSenderRoutine(){
                 sendPackage(pack,ELECTION_PORT,ipNode->ipAddress);
                 ipNode = ipNode->nextNode;
             }
-            electionState = WAITING_FOR_ANSWER;
         }
+	electionState = WAITING_FOR_ANSWER;
 
         pthread_cancel(coordinatorSenderThread);
         pthread_join(coordinatorSenderThread,NULL);
@@ -189,6 +189,7 @@ void* electionRoutine(){
                         setManagerByHostname(hostname);
                         customWriteMutexUnlock(customMutex,DATA_UPDATED);
                     }
+                    electionState = ELECTION_FINISHED;
                 }
                 free(hostname);
             }
@@ -200,12 +201,6 @@ void* electionRoutine(){
 }
 
 void stopElectionSubservice(){
-    pthread_cancel(electionThread);
-    pthread_cancel(electionSenderThread);
-    pthread_cancel(coordinatorSenderThread);
-    pthread_join(electionThread,NULL);
-    pthread_join(electionSenderThread,NULL);
-    pthread_join(coordinatorSenderThread,NULL);
     closeSocket(electionSocket);
 }
 

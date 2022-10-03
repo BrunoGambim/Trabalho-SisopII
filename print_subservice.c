@@ -40,8 +40,3 @@ void runPrintSubservice(custom_mutex *mutex){
 
     sem_wait(&waitDiscoverySubserviceStart);
 }
-
-
-void stopPrintSubservice(){
-    pthread_cancel(printThread);
-}

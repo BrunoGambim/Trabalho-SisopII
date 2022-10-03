@@ -30,7 +30,7 @@ int isTheLastLine(table_line* line){
 }
 
 unsigned int getTimestamp(){
-    return (unsigned)time(NULL);;
+    return (unsigned)time(NULL);
 }
 
 void getLastLine(table_line** lastLine){
@@ -302,6 +302,7 @@ void printLine(table_line* line){
 }
 
 void printMemberHeader(){
+    printf("Members:\n");
     printf("Hostname           Endereco_MAC             Endereco_IP        Status\n");
 }
 
@@ -318,7 +319,8 @@ void printMembers(){
 }
 
 void printManagerHeader(){
-    printf("Hostname           Endereco_MAC             Endereco_IP\n");
+    printf("Manager:\n");
+    printf("Hostname           Endereco_MAC             Endereco_IP        Status\n");
 }
 
 void printManager(){
@@ -388,11 +390,18 @@ void addBufferData(replication_buffer *buffer){
 
 void updateBuffer(replication_buffer *buffer){
     table_line* iteratorLine, *auxLine;
+    int dataChanged;
     if(markedLines != NULL){
         iteratorLine = markedLines;
         while(iteratorLine != NULL){
             auxLine = iteratorLine;
-            addMarkedDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
+            dataChanged = addMarkedDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
+            if(dataChanged){
+                removeAck(buffer,iteratorLine->hostname);
+            }
+	    if(hasMember(buffer,iteratorLine->ipAddress)){
+		removeMember(buffer, iteratorLine->ipAddress);
+	    }
             iteratorLine = iteratorLine->nextLine;
             freeLine(auxLine);
             auxLine = NULL;
@@ -402,7 +411,10 @@ void updateBuffer(replication_buffer *buffer){
     if(!isTableEmpty()){
         iteratorLine = table;
         while (iteratorLine != NULL){
-            addDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
+            dataChanged = addDataNodeToBuffer(buffer,iteratorLine->hostname,iteratorLine->macAddress,iteratorLine->ipAddress,iteratorLine->status);
+            if(dataChanged){
+                removeAck(buffer,iteratorLine->hostname);
+            }
             if(strcmp(iteratorLine->status,AWAKEN) == 0 && !iteratorLine->isManager){
                 if(!hasMember(buffer,iteratorLine->ipAddress)){
                     addMember(buffer, iteratorLine->ipAddress);

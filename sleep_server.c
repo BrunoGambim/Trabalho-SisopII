@@ -24,8 +24,6 @@ void* stopAllSubservices(){
     stopDiscoverySubservice();
     stopElectionSubservice();
     stopExitSubservice();
-    stopInterfaceReaderSubservice();
-    stopPrintSubservice();
     stopReplicationSubservice();
     stopUpdateStatusSubservice();
 }

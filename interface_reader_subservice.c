@@ -106,12 +106,6 @@ void changeInterfaceReaderSubserviceToManager(){
     pthread_mutex_unlock(&interfaceReaderSubserviceStateMutex);
 }
 
-void stopInterfaceReaderSubservice(){
-    pthread_cancel(interfaceReaderMemberThread);
-    pthread_cancel(interfaceReaderManagerThread);
-    pthread_cancel(interfaceReaderSubserviceControllerThread);
-}
-
 void runInterfaceReaderSubservice(custom_mutex *mutex){
     interfaceReaderSubserviceState = RUNNING_AS_MEMBER;
 

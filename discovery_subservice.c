@@ -5,18 +5,20 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <time.h>
 #include "members_table.h"
 #include "network.h"
 #include "discovery_subservice.h"
 #include "election_subservice.h"
 
-#define DISCOVERY_SENDER_PERIOD 2
-#define UPDATE_MANAGER_STATUS_PERIOD 5
+#define DISCOVERY_SENDER_PERIOD 1.5f
+#define UPDATE_MANAGER_STATUS_PERIOD 2.5f
 #define TRUE 1
 #define RUNNING_AS_MEMBER 1
 #define RUNNING_AS_MANAGER 2
 #define WAITING_FOR_MESSAGE 1
 #define MESSAGE_RECEIVED 2
+#define TRY_CHANGE_MANAGER 3
 
 pthread_mutex_t discoverySubserviceStateMutex, managerStatusMutex;
 pthread_cond_t discoverySubserviceStateChanged;
@@ -27,6 +29,8 @@ pthread_t discoverySenderThread, updateManagerStatusThread, discoveryReceiverRes
 custom_mutex *customMutex;
 int discoverySocket;
 int discoveryBroadcastSocket;
+
+unsigned int lastMessageSent;
 
 int discoverySubserviceState;
 
@@ -41,7 +45,14 @@ void* updateManagerStatusRoutine(){
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
 
         if(managerState == WAITING_FOR_MESSAGE && discoverySubserviceState == RUNNING_AS_MEMBER){
+            managerState = TRY_CHANGE_MANAGER;
+        }else if(managerState == TRY_CHANGE_MANAGER && discoverySubserviceState == RUNNING_AS_MEMBER && hasManager()){
             startElection();
+        }else if(managerState == TRY_CHANGE_MANAGER && discoverySubserviceState == RUNNING_AS_MEMBER && !hasManager()){
+	    sleep(5.5f);
+	    if(managerState == TRY_CHANGE_MANAGER && discoverySubserviceState == RUNNING_AS_MEMBER && !hasManager()){
+            	startElection();
+	    }
         }else {
             managerState = WAITING_FOR_MESSAGE;
         }
@@ -67,10 +78,16 @@ void* discoverySenderManagerRoutine(){
     getBroadcastIPAddress(&broadcastIp);
     getHostname(&hostname);
     getMACAddress(&macAddress);
-
+    lastMessageSent = (unsigned)time(NULL);
     while(TRUE){
         createDiscoveryPackage(&pack, hostname, macAddress);
+        if(((unsigned)time(NULL)-lastMessageSent) > 5 ){
+            freePackage(pack);
+	    runAsMemberDiscovery();
+	    break;
+        }
         sendPackage(pack,DISCOVERY_BROADCAST_PORT,broadcastIp);
+        lastMessageSent = (unsigned)time(NULL);
         freePackage(pack);
 
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
@@ -123,7 +140,6 @@ void* discoveryReceiverRequestRoutine(){
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
 
         unpackDiscoveryPackage(pack,&hostname,&macAddress);
-        managerState = MESSAGE_RECEIVED;
 
         customReadMutexLock(customMutex);
         managerIsNull = !hasManager();
@@ -137,6 +153,8 @@ void* discoveryReceiverRequestRoutine(){
             setManagerByHostname(hostname);
             customWriteMutexUnlock(customMutex,DATA_UPDATED);
             sendDiscoveryPackage(ipAddress);
+		
+            managerState = MESSAGE_RECEIVED;
         } else {
             customReadMutexLock(customMutex);
             getManagerHostname(&managerHostname);
@@ -153,9 +171,27 @@ void* discoveryReceiverRequestRoutine(){
                     runAsMemberDiscovery();
                 }
                 customWriteMutexUnlock(customMutex, DATA_UPDATED);
-            }
+		managerState = MESSAGE_RECEIVED;
+            }else if(strcmp(hostname, managerHostname) < 0){
+		if(managerState == TRY_CHANGE_MANAGER){
+			customWriteMutexLock(customMutex);
+		        if(!isHostnameInTheTable(hostname)){
+		            addLine(hostname,macAddress,ipAddress,AWAKEN);
+		        }
+		        setManagerByHostname(hostname);
+		        sendDiscoveryPackage(ipAddress);
+		        if(discoverySubserviceState == RUNNING_AS_MANAGER){
+		            runAsMemberDiscovery();
+		        }
+			managerState = MESSAGE_RECEIVED;
+		        customWriteMutexUnlock(customMutex, DATA_UPDATED);
+		}
+	    }else {
+		managerState = MESSAGE_RECEIVED;
+	    }
             free(managerHostname);
         }
+	
 
         free(hostname);
         free(macAddress);
@@ -203,11 +239,6 @@ void changeDiscoverySubserviceToManager(){
 }
 
 void stopDiscoverySubservice(){
-    pthread_cancel(discoveryReceiverRequestThread);
-    pthread_cancel(discoveryReceiverResponseThread);
-    pthread_cancel(discoverySenderThread);
-    pthread_cancel(updateManagerStatusThread);
-    pthread_cancel(discoverySubserviceControllerThread);
     closeSocket(discoverySocket);
     closeSocket(discoveryBroadcastSocket);
 }

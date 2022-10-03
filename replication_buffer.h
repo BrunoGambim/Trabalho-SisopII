@@ -35,11 +35,12 @@ typedef struct _replication_buffer{
 void createReplicationBuffer(replication_buffer **buffer);
 void ackBuffer(replication_buffer *buffer, char *hostname, char *ipAddress);
 void freeBuffer(replication_buffer *buffer);
-void addDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAddress, char *ipAddress, char *status);
+int addDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAddress, char *ipAddress, char *status);
 int isBufferAcked(replication_buffer *buffer);
 void removeMember(replication_buffer *buffer, char *ipAddress);
 void addMember(replication_buffer *buffer, char *ipAddress);
 int hasMember(replication_buffer *buffer, char *ipAddress);
-void addMarkedDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAddress, char *ipAddress, char *status);
+int addMarkedDataNodeToBuffer(replication_buffer *buffer, char *hostname, char *macAddress, char *ipAddress, char *status);
+void removeAck(replication_buffer *buffer, char *hostname);
 
 #endif
