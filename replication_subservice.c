@@ -88,7 +88,6 @@ void* replicationDataSenderManagerRoutine(){
     int i;
     getBroadcastIPAddress(&broadcastIp);
     while(TRUE){
-
 	pthread_mutex_lock(&replicationBufferMutex);
         node = buffer->dataList;
         while(node != NULL){
@@ -98,6 +97,7 @@ void* replicationDataSenderManagerRoutine(){
             pack = NULL;
             node = node->nextNode;
         }
+
 	pthread_mutex_unlock(&replicationBufferMutex);
 
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
@@ -105,27 +105,27 @@ void* replicationDataSenderManagerRoutine(){
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
 
         pthread_mutex_lock(&replicationBufferMutex);
-	if(buffer != NULL){
-		customReadMutexLock(customMutex);
-		updateBuffer(buffer);
-		customReadMutexUnlock(customMutex);
+             
+	customWriteMutexLock(customMutex);
+	updateBuffer(buffer);
+	customWriteMutexUnlock(customMutex,DATA_NOT_UPDATED);
+        if(replicationSubserviceState == RUNNING_AS_MEMBER){
+            pthread_mutex_unlock(&replicationBufferMutex);
+	    break;
 	}
-
         if(isBufferAcked(buffer)){
             pthread_mutex_unlock(&replicationBufferMutex);
 
             pthread_cancel(replicationReceiverThread);
-            pthread_cancel(replicationDataSenderThread);
-
             pthread_join(replicationReceiverThread,NULL);
 
             replicationState = REPLICATION_FINISHED;
-            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
 	    break;
         }else{
 	    pthread_mutex_unlock(&replicationBufferMutex);
 	}
     }
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
 }
 
 void* replicationReceiverManagerRoutine(){
@@ -164,9 +164,12 @@ void* replicationManagerRoutine(){
             }
             createReplicationBuffer(&buffer);
 
-            customReadMutexLock(customMutex);
+	    customReplicationMutexUnlock(customMutex);
+            customWriteMutexLock(customMutex);
             addBufferData(buffer);
-            customReadMutexUnlock(customMutex);
+            customWriteMutexUnlock(customMutex,DATA_NOT_UPDATED);
+	    customReplicationMutexLock(customMutex);
+
             pthread_create(&replicationDataSenderThread,NULL,replicationDataSenderManagerRoutine,NULL);
             pthread_create(&replicationReceiverThread,NULL,replicationReceiverManagerRoutine,NULL);
             replicationState = REPLICATION_RUNNING;
@@ -184,9 +187,7 @@ void* replicationSubserviceControllerRoutine(){
             pthread_join(replicationMemberThread,NULL);
             replicationState = REPLICATION_FINISHED;
         }else{
-            pthread_cancel(replicationDataSenderThread);
             pthread_cancel(replicationReceiverThread);
-            pthread_join(replicationDataSenderThread,NULL);
             pthread_join(replicationReceiverThread,NULL);
             pthread_create(&replicationMemberThread,NULL,replicationMemberRoutine,NULL);
         }
@@ -198,8 +199,8 @@ void* replicationSubserviceControllerRoutine(){
 void changeReplicationSubserviceToMember(){
     pthread_mutex_lock(&replicationSubserviceStateMutex);
     if(replicationSubserviceState == RUNNING_AS_MANAGER){
-        pthread_cond_signal(&replicationSubserviceStateChanged);
         replicationSubserviceState = RUNNING_AS_MEMBER;
+        pthread_cond_signal(&replicationSubserviceStateChanged);
     }
     pthread_mutex_unlock(&replicationSubserviceStateMutex);
 }
@@ -207,8 +208,8 @@ void changeReplicationSubserviceToMember(){
 void changeReplicationSubserviceToManager(){
     pthread_mutex_lock(&replicationSubserviceStateMutex);
     if(replicationSubserviceState == RUNNING_AS_MEMBER){
-        pthread_cond_signal(&replicationSubserviceStateChanged);
         replicationSubserviceState = RUNNING_AS_MANAGER;
+        pthread_cond_signal(&replicationSubserviceStateChanged);
     }
     pthread_mutex_unlock(&replicationSubserviceStateMutex);
 }
